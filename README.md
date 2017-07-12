@@ -18,6 +18,22 @@ This solves the following problems :
 
 ## How does it work ?
 
+This will run a small docker image containing only crond (Alpine derived from
+the [docker Docker image](https://hub.docker.com/_/docker/)).
+
+Each entry in the crontab will deploy a docker stack. That is why your stacks
+should be "one-shot" (group of) containers. Typically this is what you started
+with `--rm` before. Think of backups for instance.
+
+You will then be able to check the results of your applications with `docker
+logs` or `docker service logs` if you're running at least Docker 17.03.
+
+## Requirements
+
+Docker Engine >= 1.13.0 and [Swarm mode](https://docs.docker.com/engine/swarm/) initiated.
+
+:warning: This will NOT work with [Docker Swarm](https://docs.docker.com/swarm/) (there are no stacks).
+
 ## How do I use it ?
 
 You have to declare entries in your crontab in the following manner :
