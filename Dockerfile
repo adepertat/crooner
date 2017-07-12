@@ -1,7 +1,7 @@
 FROM docker:17.05
 
 LABEL maintainer="Albéric de Pertat <alberic@depertat.net>" \
-      version="2" \
+      version="1" \
       description="Run Docker stacks through cron"
 
 RUN apk add --no-cache bash
