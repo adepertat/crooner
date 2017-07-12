@@ -1,0 +1,96 @@
+#!/bin/bash -e
+
+stack_dir=${CROONER_STACK_DIR-/stacks}
+crontab_dir=${CROONER_CRONTAB_DIR-/etc/crontabs}
+crontab=${CROONER_CRONTAB-/etc/crontab}
+
+#######################################################################
+
+function log() {
+    if [ -n "$CROONER_VERBOSE" ]; then
+        echo "$(date) $@"
+    fi
+}
+
+function runcmd() {
+    cmd=$1
+    log "Running: $cmd"
+    $cmd
+    return $?
+}
+
+function start_crond() {
+    cron_lines=$(awk '!/^[ \t#]/ {print}' $crontab | wc -l)
+    log "Found $cron_lines cron lines in $crontab."
+    if [ "$cron_lines" > 0 ]; then
+        runcmd "chown root:root $crontab_dir/*"
+        runcmd "crond -l 8 -f -d 8 -c $crontab_dir"
+    else
+        echo "Nothing to run (crontab empty), aborting ..."
+    fi
+    log "Terminating ..."
+}
+
+function run() {
+    if [ -z "$1" ]; then
+        echo "Usage: crooner run <stack-name>"
+        exit 1
+    fi
+    stack_name=$1
+    stack_file=$stack_dir/$stack_name.yml
+
+    if [ -r "$stack_file" ]; then
+        runcmd "exec docker stack deploy --compose-file $stack_file $stack_name"
+    else
+        echo "Could not read $stack_file. Aborting."
+        exit 1
+    fi
+}
+
+function logs() {
+    log "Getting service logs for $1"
+    if [ -z "$1" ]; then
+        echo "Usage: crooner logs <stack-name>"
+        exit 1
+    fi
+    stack_name=$1
+    shift
+    runcmd "docker service logs --timestamps $stack_name $@" | sort
+}
+
+function list() {
+    if [ -n "$1" ]; then
+        stack_name=$1
+        log "Getting services list for $stack_name ..."
+        runcmd "docker stack ps $stack_name"
+    else
+        log "Getting stack list ..."
+        runcmd "exec docker stack ls"
+    fi
+
+}
+
+function help() {
+    echo "Usage: crooner start|run|logs|ls [args,...]"
+    echo
+    echo "  start      Start crond (default)"
+    echo "  run STACK  Run STACK once"
+    echo "  logs STACK Get logs for stack STACK"
+    echo "  ls [STACK] List services in stack STACK or list all stacks"
+    exit 1
+}
+#######################################################################
+
+action=$1
+if [ -z "$action" ]; then
+    action='start'
+fi
+
+log "action=$action"
+case "$action" in
+    'start') start_crond ;;
+    'run') run $2 ;;
+    'logs') logs $2 ;;
+    'ls') list $2 ;;
+    *) help ;;
+esac
